@@ -1,11 +1,17 @@
 import User from '../models/user.js';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
 import { z } from 'zod';
+import generateAccessToken from '../utils/generateaccesstoken.js';
+import generateRefreshToken from '../utils/generaterefreshToken.js';
+import { verify } from '../utils/verifyRefreshToken.js';
+import crypto from "crypto";
+
+const secureOptions = {secure: true, httpOnly: true}
 
 const registerSchema = z.object({
     name: z.string().min(3),
     email: z.string().email(),
+    role: z.string(),
     password: z.string().min(6)
 });
 
@@ -23,7 +29,7 @@ export const register = async (req, res) => {
             return res.status(400).json({ error: "Invalid Credentials" });
         }
 
-        let { name, email, password } = validation.data;
+        let { name, email, password, role } = validation.data;
         const existingUser = await User.findOne({ email });
 
         if (existingUser) {
@@ -31,7 +37,7 @@ export const register = async (req, res) => {
         }
 
         const hassedPassword = await bcrypt.hash(password, 10);
-        const newUser = new User({ name, email, password: hassedPassword });
+        const newUser = new User({ name, email, password: hassedPassword , role});
         await newUser.save();
         res.status(201).json({ message: 'User registered successfully' });
     } catch (error) {
@@ -60,9 +66,87 @@ export const login = async (req, res) => {
             return res.status(400).json({ error: "Invalid Credentails" });
         }
         
-        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '15m' });
-        res.json({ token });
+        const accessToken = generateAccessToken(user)
+        const refreshToken = generateRefreshToken(user._id)
+        
+        const hashedRefreshToken = crypto
+  .createHash("sha256")
+  .update(refreshToken)
+  .digest("hex");
+
+        await User.findByIdAndUpdate(
+            user._id,
+            { refreshToken: hashedRefreshToken},
+            {new : true}
+        )
+        res.status(200)
+        .cookie("refreshToken", refreshToken, secureOptions)
+        .json({"accessToken": accessToken })
     } catch (error) {
     res.status(500).json({ error: "Server error" });
   }
+}
+
+export const logout = async(req, res) => {
+    try {
+        const userRefreshToken = await  req.cookies.refreshToken
+    
+        if (!userRefreshToken) {
+            res.status(403).json("Unauthorized")
+        }
+    
+        const decoded = await verify(userRefreshToken)
+        const { userId } = decoded.payload
+    
+        await findByIdAndUpdate(
+            userId,
+            {refreshToken: undefined}
+        )
+    
+        res.status(200)
+        .clearCookie("refreshToken")
+        .clearCookie('accesstoken')
+        .json("User Loged Out succesfully")
+    } catch (error) {
+        res.status(500).json("Internal Server Error")
+    }
+}
+
+export const refresh = async(req, res) => {
+    try {
+        const userRefreshToken = await req.cookies.refreshToken;
+    
+        if (!userRefreshToken) {
+            res.status(403).json("Foorbiden Invalid Refresh Token")
+        }
+        const hashedIncomingToken = crypto
+      .createHash("sha256")
+      .update(userRefreshToken)
+      .digest("hex");
+        const decoded = await verify(userRefreshToken)
+        
+        const { userId }  = decoded.payload
+    
+        const user = await findOne({ userId })
+        
+    
+        if (hashedIncomingToken != user.refreshToken) {
+            res.status(400).json('Unauthorized')
+        }
+    
+        const newAccessToken = await generateAccessToken(user)
+        const newRefreshToken = await generateRefreshToken(user._id)
+    
+        await findByIdAndUpdate(
+            userId,
+            {refreshToken: newRefreshToken},
+            {new : true}
+        );
+    
+        res.status(200)
+        .cookie("refreshToken", newRefreshToken, secureOptions)
+        .json({"accessToken": newAccessToken})
+    } catch (error) {
+        res.status(500).json("Internal Server Error!")
+    }
 }
