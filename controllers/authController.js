@@ -6,7 +6,7 @@ import generateRefreshToken from '../utils/generaterefreshToken.js';
 import { verify } from '../utils/verifyRefreshToken.js';
 import crypto from "crypto";
 
-const secureOptions = {secure: true, httpOnly: true}
+const secureOptions = { httpOnly: true}
 
 const registerSchema = z.object({
     name: z.string().min(3),
@@ -96,9 +96,9 @@ export const logout = async(req, res) => {
         }
     
         const decoded = await verify(userRefreshToken)
-        const { userId } = decoded.payload
+        const { userId } = decoded
     
-        await findByIdAndUpdate(
+        await User.findByIdAndUpdate(
             userId,
             {refreshToken: undefined}
         )
@@ -125,7 +125,7 @@ export const refresh = async(req, res) => {
       .digest("hex");
         const decoded = await verify(userRefreshToken)
         
-        const { userId }  = decoded.payload
+        const { userId }  = decoded
     
         const user = await findOne({ userId })
         
@@ -136,10 +136,14 @@ export const refresh = async(req, res) => {
     
         const newAccessToken = await generateAccessToken(user)
         const newRefreshToken = await generateRefreshToken(user._id)
-    
-        await findByIdAndUpdate(
+        
+        const hashedRefreshToken = crypto
+  .createHash("sha256")
+  .update(newRefreshToken)
+  .digest("hex");
+        await User.findByIdAndUpdate(
             userId,
-            {refreshToken: newRefreshToken},
+            {refreshToken: hashedRefreshToken},
             {new : true}
         );
     

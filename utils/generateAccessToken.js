@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 
-export default generatAaccessToken = async (user) => {
-    const accessToken = await jwt.sign(
+export default function generateAccessToken(user) {
+    return jwt.sign(
         {
             "_id" : user._id,
             "email": user.email,
@@ -9,9 +9,7 @@ export default generatAaccessToken = async (user) => {
         },
         process.env.JWT_SECRET,
         {
-            expiresIn: '15min'
+            expiresIn: '15m'
         }
     )
-
-    return accessToken
 }

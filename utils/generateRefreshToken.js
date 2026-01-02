@@ -1,8 +1,8 @@
 import jwt from 'jsonwebtoken';
 
 
-export default generateRefreshToken = async (userId) => {
-    const refreshToken = await jwt.sign(
+export default function generateRefreshToken(userId) {
+    return jwt.sign(
         {
             "userId": userId
         },
@@ -11,6 +11,4 @@ export default generateRefreshToken = async (userId) => {
             expiresIn: '7d'
         }
     )
-
-    return refreshToken
 }
