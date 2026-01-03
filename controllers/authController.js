@@ -6,7 +6,7 @@ import generateRefreshToken from '../utils/generaterefreshToken.js';
 import { verify } from '../utils/verifyRefreshToken.js';
 import crypto from "crypto";
 
-const secureOptions = { httpOnly: true}
+const secureOptions = { secure: false,httpOnly: false };
 
 const registerSchema = z.object({
     name: z.string().min(3),
@@ -79,11 +79,12 @@ export const login = async (req, res) => {
             { refreshToken: hashedRefreshToken},
             {new : true}
         )
-        res.status(200)
+        return res.status(200)
         .cookie("refreshToken", refreshToken, secureOptions)
         .json({"accessToken": accessToken })
-    } catch (error) {
-    res.status(500).json({ error: "Server error" });
+    } 
+    catch (error) {
+        return res.status(500).json({ error: "Server error" });
   }
 }
 
@@ -92,7 +93,7 @@ export const logout = async(req, res) => {
         const userRefreshToken = await  req.cookies.refreshToken
     
         if (!userRefreshToken) {
-            res.status(403).json("Unauthorized")
+            returnres.status(403).json("Unauthorized")
         }
     
         const decoded = await verify(userRefreshToken)
@@ -103,12 +104,12 @@ export const logout = async(req, res) => {
             {refreshToken: undefined}
         )
     
-        res.status(200)
+        return res.status(200)
         .clearCookie("refreshToken")
         .clearCookie('accesstoken')
         .json("User Loged Out succesfully")
     } catch (error) {
-        res.status(500).json("Internal Server Error")
+        returnres.status(500).json("Internal Server Error")
     }
 }
 
@@ -117,7 +118,7 @@ export const refresh = async(req, res) => {
         const userRefreshToken = await req.cookies.refreshToken;
     
         if (!userRefreshToken) {
-            res.status(403).json("Foorbiden Invalid Refresh Token")
+            return res.status(403).json("Foorbiden Invalid Refresh Token")
         }
         const hashedIncomingToken = crypto
       .createHash("sha256")
@@ -125,13 +126,13 @@ export const refresh = async(req, res) => {
       .digest("hex");
         const decoded = await verify(userRefreshToken)
         
-        const { userId }  = decoded
+        const { userId }  = decoded;
     
-        const user = await findOne({ userId })
+        const user = await User.findOne({ _id: userId })
         
     
         if (hashedIncomingToken != user.refreshToken) {
-            res.status(400).json('Unauthorized')
+            return res.status(400).json('Unauthorized')
         }
     
         const newAccessToken = await generateAccessToken(user)
@@ -147,10 +148,10 @@ export const refresh = async(req, res) => {
             {new : true}
         );
     
-        res.status(200)
+        return res.status(200)
         .cookie("refreshToken", newRefreshToken, secureOptions)
         .json({"accessToken": newAccessToken})
     } catch (error) {
-        res.status(500).json("Internal Server Error!")
+        return res.status(500).json("Internal Server Error!")
     }
 }
