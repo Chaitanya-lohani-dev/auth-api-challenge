@@ -255,6 +255,9 @@ The API returns appropriate HTTP status codes:
   "zod": "^4.1.13"
 }
 ```
+## Video Walkthrough
+🎥 Full explanation + Postman demo: [Click Here](https://youtu.be/rKcRNJ35qVw)
+
 
 ## Future Enhancements
 
